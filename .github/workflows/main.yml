@@ -25,8 +25,7 @@ jobs:
         tag: ${{ steps.get-version.outputs.version }} # Use the version as the tag
     - name: Create Release
       id: create_latest_release
-      uses: ncipollo/release-action@v2
-      if: endsWith(github.ref, 'master') # Only update the latest release when pushing to the master branch
+      uses: ncipollo/release-action@v1
       with:
         allowUpdates: true
         name: Latest
