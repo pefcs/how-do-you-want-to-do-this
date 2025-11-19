@@ -15,8 +15,6 @@ const ACTOR_SESSION = new Map();
 const getProp = (obj, path) => {
   const fu = globalThis.foundry?.utils;
   if (fu?.getProperty) return fu.getProperty(obj, path);
-  // v12- kompat fallback (elkerülhetetlen, ha régi core fut)
-  // eslint-disable-next-line no-undef
   return globalThis.getProperty ? globalThis.getProperty(obj, path) : undefined;
 };								
 function dbg(...args) {
@@ -195,7 +193,7 @@ Hooks.once("ready", () => {
   );
 });
 
-// ---------- Helpers ----------
+// Helpers
 
 function resolveTargetActorsFromWorkflow(workflow) {
   const actors = new Set();
@@ -258,7 +256,7 @@ function resolveAttackerForTarget(targetActorId, options = {}) {
   return null;
 }
 
-// --- Deferred/session utils ---
+// Session utils
 
 function createDeferred() {
   let _resolve;
@@ -293,7 +291,7 @@ function fromUuidMaybe(uuid) {
 
 function getLastMidiWorkflow() { try { return MidiQOL?.Workflow?.lastWorkflow ?? MidiQOL?.lastWorkflow ?? null; } catch { return null; } }
 
-// --- Midi auto-apply ---
+// Midi autoapply
 
 function midiAutoApplyInfo() {
   const YES_RAW = new Set(["yes", "yesCard", "yesCardMisses", "yesCardNPC"]);
@@ -327,7 +325,7 @@ function midiAutoApplyInfo() {
   return { enabled, value: raw, normalized, source };
 }
 
-// --- Dialog & sockets ---
+// Dialog+sockets
 
 function showGMDialog(actorId) {
   return new Promise((resolve) => {
@@ -366,7 +364,8 @@ function requestGMApproval(actorId) {
   });
 }
 
-// --- Utils ---
+// Utils
 
 function randomId() { return crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2); }
 function escapeHtml(s) { return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'", "&#039;"); }
+
