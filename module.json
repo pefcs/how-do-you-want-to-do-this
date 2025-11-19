@@ -1,0 +1,23 @@
+{
+  "id": "how-do-you-want-to-do-this",
+  "title": "How do you want to do this",
+  "description": "Pause when an attacker PC would drop a target to 0 HP during Midi damage workflow; GM dialog and resume on Continue.",
+  "version": "1.4.1",
+  "authors": [{ "name": "Pefcs" }],
+  "compatibility": { "minimum": "13", "verified": "13" },
+  "relationships": {
+    "requires": [
+      {
+        "id": "midi-qol",
+        "type": "module",
+        "manifest": "https://gitlab.com/tposney/midi-qol/-/raw/master/src/module.json"
+      },
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json"
+      }
+    ]
+  },
+  "esmodules": ["scripts/how-do-you-want-to-do-this.js"]
+}
