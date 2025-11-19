@@ -1,4 +1,4 @@
-name: custom-variant-encumbrance CI
+name: how-do-you-want-to-do-this CI
 
 on: [push]
 
