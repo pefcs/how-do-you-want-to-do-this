@@ -29,10 +29,9 @@ jobs:
       if: endsWith(github.ref, 'master') # Only update the latest release when pushing to the master branch
       with:
         allowUpdates: true
-        name: ${{github.event.release.name}}
+        name: Latest
         draft: false
         prerelease: false
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: './module.json,./module.zip'
-        tag: ${{ github.event.release.tag_name }}
-        body: ${{ github.event.release.body }}
+        tag: latest
