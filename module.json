@@ -19,5 +19,7 @@
       }
     ]
   },
-  "esmodules": ["scripts/how-do-you-want-to-do-this.js"]
+  "esmodules": ["scripts/how-do-you-want-to-do-this.js"],
+  "manifest" : "https://github.com/module.json"
 }
+
