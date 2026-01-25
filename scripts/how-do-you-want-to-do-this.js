@@ -1,4 +1,5 @@
 const MODULE_ID = "how-do-you-want-to-do-this";
+const POLY_MODULE_ID = "polymorph-with-overflow";
 const SOCKET = `module.${MODULE_ID}`;
 
 const BYPASS_FLAG = Symbol(`${MODULE_ID}-bypass`);
@@ -15,8 +16,10 @@ const ACTOR_SESSION = new Map();
 const getProp = (obj, path) => {
   const fu = globalThis.foundry?.utils;
   if (fu?.getProperty) return fu.getProperty(obj, path);
+  // v12- kompat fallback (elkerülhetetlen, ha régi core fut)
+  // eslint-disable-next-line no-undef
   return globalThis.getProperty ? globalThis.getProperty(obj, path) : undefined;
-};								
+};
 function dbg(...args) {
   if (!game.settings?.get(MODULE_ID, "debug")) return;
   try { console.log(`%c[${MODULE_ID}]`, "color:#7bd;font-weight:bold", ...args); }
@@ -118,6 +121,26 @@ Hooks.once("ready", () => {
         dbg("Drop check", { willDropToZero });
         if (!willDropToZero) return await wrapped.call(this, data, options);
 
+        // --- Polymorph handling (optional dependency) ---
+// If polymorph-with-overflow is active, we skip the HDYWTDT prompt when the "polymorphed" HP pool hits 0
+        const polyActive = !!game.modules?.get?.(POLY_MODULE_ID)?.active;
+        if (polyActive) {
+          const isPolymorphed =
+            this.getFlag?.("dnd5e", "isPolymorphed") ||
+            !!getProp(this, `flags.${POLY_MODULE_ID}.isPolymorphActor`);
+          if (isPolymorphed) {
+            dbg("Actor is polymorphed (poly module active) → skip HDYWTDT dialog & lethal session", {
+              actorId: this.id,
+              name: this.name,
+              polyActive
+            });
+            return await wrapped.call(this, data, options);
+          }
+        } else {
+          dbg("Polymorph module not active → skipping polymorph checks", { polyActive });
+        }
+        // --- END polymorph handling ---
+
         const midiCheck = midiAutoApplyInfo();
         dbg("Midi auto-apply check", midiCheck);
         if (!midiCheck.enabled) { dbg("Auto-apply not enabled → pass"); return await wrapped.call(this, data, options); }
@@ -193,7 +216,7 @@ Hooks.once("ready", () => {
   );
 });
 
-// Helpers
+// ---------- Helpers ----------
 
 function resolveTargetActorsFromWorkflow(workflow) {
   const actors = new Set();
@@ -256,7 +279,7 @@ function resolveAttackerForTarget(targetActorId, options = {}) {
   return null;
 }
 
-// Session utils
+// --- Deferred/session utils ---
 
 function createDeferred() {
   let _resolve;
@@ -284,14 +307,14 @@ function tagResolved(actor, by) { try { actor._mlpResolvedBy = by; } catch {} re
 
 function fromUuidMaybe(uuid) {
   if (!uuid || typeof fromUuidSync !== "function") return null;
-  try { 
-    return fromUuidSync(uuid); 
+  try {
+    return fromUuidSync(uuid);
   } catch { return null; }
 }
 
 function getLastMidiWorkflow() { try { return MidiQOL?.Workflow?.lastWorkflow ?? MidiQOL?.lastWorkflow ?? null; } catch { return null; } }
 
-// Midi autoapply
+// --- Midi auto-apply ---
 
 function midiAutoApplyInfo() {
   const YES_RAW = new Set(["yes", "yesCard", "yesCardMisses", "yesCardNPC"]);
@@ -325,7 +348,7 @@ function midiAutoApplyInfo() {
   return { enabled, value: raw, normalized, source };
 }
 
-// Dialog+sockets
+// --- Dialog & sockets ---
 
 function showGMDialog(actorId) {
   return new Promise((resolve) => {
@@ -364,8 +387,7 @@ function requestGMApproval(actorId) {
   });
 }
 
-// Utils
+// --- Utils ---
 
 function randomId() { return crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2); }
 function escapeHtml(s) { return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'", "&#039;"); }
-
