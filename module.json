@@ -4,7 +4,7 @@
   "description": "Pause when an attacker PC would drop a target to 0 HP during Midi damage workflow; GM dialog and resume on Continue.",
   "version": "1.5.0",
   "authors": [{ "name": "Pefcs" }],
-  "compatibility": { "minimum": "13", "verified": "13" },
+  "compatibility": { "minimum": "13", "verified": "14", "maximum": "14" },
   "relationships": {
     "requires": [
       {
