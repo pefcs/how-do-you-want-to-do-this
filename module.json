@@ -2,7 +2,7 @@
   "id": "how-do-you-want-to-do-this",
   "title": "How do you want to do this",
   "description": "Pause when an attacker PC would drop a target to 0 HP during Midi damage workflow; GM dialog and resume on Continue.",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "authors": [{ "name": "Pefcs" }],
   "compatibility": { "minimum": "13", "verified": "14", "maximum": "14" },
   "relationships": {
