@@ -9,9 +9,9 @@
     }
   ],
   "compatibility": {
-    "minimum": "14.369",
-    "verified": "14.369",
-    "maximum": "14.999"
+    "minimum": "13",
+    "verified": "14",
+    "maximum": "14"
   },
   "relationships": {
     "requires": [
@@ -24,17 +24,6 @@
         "id": "lib-wrapper",
         "type": "module",
         "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json"
-      }
-    ],
-    "systems": [
-      {
-        "id": "dnd5e",
-        "type": "system",
-        "compatibility": {
-          "minimum": "6.0.6",
-          "verified": "6.0.6",
-          "maximum": "6.0.999"
-        }
       }
     ]
   },
