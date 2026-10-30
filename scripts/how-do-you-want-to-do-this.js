@@ -68,28 +68,66 @@ Hooks.once("ready", () => {
     return;
   }
 
-  Hooks.on("midi-qol.preTargetDamageApplication", (workflow, targetTokenDoc) => {
+  // Midi-QoL 14.6.5 signature: (token, { item, workflow, damageItem, ditem }).
+  Hooks.on("midi-qol.preTargetDamageApplication", (token, context = {}) => {
     try {
-      const attacker = workflow?.actor ?? workflow?.item?.parent ?? workflow?.token?.actor;
-      const targetActorId = targetTokenDoc?.actor?.id ?? targetTokenDoc?.actorId ?? targetTokenDoc?.actor?.id;
-      const wfId = workflow?.id ?? workflow?.uuid;
+      const workflow = context?.workflow ?? null;
+      const item = context?.item ?? workflow?.item;
+      const attacker = workflow?.actor ?? item?.parent?.document ?? item?.parent ?? workflow?.token?.actor;
+      const targetActor = token?.actor ?? token?.document?.actor ?? token?.object?.actor;
+      const targetActorId = targetActor?.id ?? targetActor?._id;
+      const wfId =
+        workflow?.id ??
+        workflow?.uuid ??
+        workflow?.itemCardUuid ??
+        context?.damageItem?.calcDamageOptions?.midi?.itemCardUuid;
+
       if (attacker && targetActorId) {
-        LAST_ATTACKER.set(targetActorId, { attacker, ts: Date.now(), by: "preTargetDamageApplication", wfId });
-        dbg("Remember attacker (preTargetDamageApplication)", { targetActorId, attackerName: attacker?.name, attackerType: attacker?.type, wfId });
+        LAST_ATTACKER.set(targetActorId, {
+          attacker,
+          ts: Date.now(),
+          by: "preTargetDamageApplication",
+          wfId
+        });
+        dbg("Remember attacker (preTargetDamageApplication)", {
+          targetActorId,
+          attackerName: attacker?.name,
+          attackerType: attacker?.type,
+          wfId
+        });
       }
-    } catch {}
+    } catch (e) {
+      dbg("preTargetDamageApplication attacker capture failed", e);
+    }
   });
 
-  Hooks.on("midi-qol.preApplyDamage", (workflow) => {
+  // Midi-QoL 14.6.5 calls the system hook with (actor, amount, updates, options).
+  // The current Midi damage options carry midi.sourceActorUuid and midi.itemCardUuid.
+  Hooks.on("dnd5e.preApplyDamage", (targetActor, amount, updates, options = {}) => {
     try {
-      const attacker = workflow?.actor ?? workflow?.item?.parent ?? workflow?.token?.actor;
-      const wfId = workflow?.id ?? workflow?.uuid;
-      const targets = resolveTargetActorsFromWorkflow(workflow);
-      for (const tActor of targets) {
-        LAST_ATTACKER.set(tActor.id, { attacker, ts: Date.now(), by: "preApplyDamage", wfId });
-        dbg("Remember attacker (preApplyDamage)", { targetActorId: tActor.id, attackerName: attacker?.name, attackerType: attacker?.type, wfId });
+      const targetActorId = targetActor?.id ?? targetActor?._id;
+      if (!targetActorId) return;
+
+      const resolved = resolveExplicitAttacker(options);
+      if (resolved?.attacker) {
+        LAST_ATTACKER.set(targetActorId, {
+          attacker: resolved.attacker,
+          ts: Date.now(),
+          by: "dnd5e.preApplyDamage",
+          wfId: resolved.wfId
+        });
+        dbg("Remember attacker (dnd5e.preApplyDamage)", {
+          targetActorId,
+          attackerName: resolved.attacker?.name,
+          attackerType: resolved.attacker?.type,
+          amount,
+          hasHPUpdate: getProp(updates, "system.attributes.hp.value") !== undefined,
+          wfId: resolved.wfId
+        });
       }
-    } catch {}
+    } catch (e) {
+      dbg("dnd5e.preApplyDamage attacker capture failed", e);
+    }
   });
 
   Hooks.on("updateCombat", () => { pruneAttackers("updateCombat"); pruneSessions("updateCombat"); });
@@ -219,63 +257,68 @@ Hooks.once("ready", () => {
 
 // ---------- Helpers ----------
 
-function resolveTargetActorsFromWorkflow(workflow) {
-  const actors = new Set();
-  try {
-    const tSet = workflow?.hitTargets?.size ? workflow.hitTargets : workflow?.targets;
-    if (tSet && typeof tSet.forEach === "function") {
-      tSet.forEach(t => {
-        const a = t?.actor ?? t?.document?.actor ?? t?.object?.actor;
-        if (a) actors.add(a);
-      });
-    }
-    const uuids = workflow?.chatCard?.getFlag?.("midi-qol", "targetUuids");
-    if (Array.isArray(uuids)) {
-      for (const uuid of uuids) {
-        const tok = fromUuidMaybe(uuid);
-        const a = tok?.actor ?? tok?.object?.actor;
-        if (a) actors.add(a);
-      }
-    }
-  } catch {}
-  return actors;
-}
+function resolveExplicitAttacker(options = {}) {
+  const wf = options?.midi?.workflow ?? options?.workflow ?? null;
+  const wfId =
+    wf?.id ??
+    wf?.uuid ??
+    options?.midi?.workflowId ??
+    options?.midi?.itemCardUuid ??
+    options?.midi?.chatCardUuid ??
+    options?.itemCardUuid;
 
-function resolveAttackerForTarget(targetActorId, options = {}) {
-  pruneAttackers("resolve");
-  const mem = LAST_ATTACKER.get(targetActorId);
-  if (mem?.attacker) {
-    tagResolved(mem.attacker, mem.by ?? "remembered");
-    return { attacker: mem.attacker, wfId: mem.wfId };
+  if (wf?.actor) {
+    return { attacker: tagResolved(wf.actor, "options.workflow.actor"), wfId };
   }
 
-  const wf = options?.midi?.workflow ?? options?.workflow ?? null;
-  const wfId = wf?.id ?? wf?.uuid;
-  if (wf?.actor) return { attacker: tagResolved(wf.actor, "options.workflow.actor"), wfId };
-
-  const actorUuid = wf?.actorUuid ?? options?.midi?.actorUuid ?? options?.midi?.sourceActorUuid ?? options?.actorUuid;
-  const aFromActorUuid = fromUuidMaybe(actorUuid);
-  if (aFromActorUuid?.isActor || aFromActorUuid?.type) return { attacker: tagResolved(aFromActorUuid.document ?? aFromActorUuid, "actorUuid"), wfId };
+  // Midi-QoL 14.6.5 includes the source Actor UUID in calcDamageOptions.midi.
+  // Prefer this explicit per-application attribution over the shared fallback cache.
+  const actorUuid =
+    wf?.actorUuid ??
+    options?.midi?.sourceActorUuid ??
+    options?.midi?.actorUuid ??
+    options?.actorUuid;
+  const actorFromUuid = fromUuidMaybe(actorUuid);
+  if (actorFromUuid?.isActor || actorFromUuid?.type) {
+    return { attacker: tagResolved(actorFromUuid.document ?? actorFromUuid, "sourceActorUuid"), wfId };
+  }
 
   const itemUuid = wf?.itemUuid ?? options?.midi?.itemUuid ?? options?.itemUuid;
   const item = fromUuidMaybe(itemUuid);
   const actorFromItem = item?.parent?.document ?? item?.parent;
-  if (actorFromItem?.isActor || actorFromItem?.type) return { attacker: tagResolved(actorFromItem, "itemUuid.parent"), wfId };
+  if (actorFromItem?.isActor || actorFromItem?.type) {
+    return { attacker: tagResolved(actorFromItem, "itemUuid.parent"), wfId };
+  }
 
   const tokenUuid = wf?.tokenUuid ?? options?.midi?.tokenUuid ?? options?.tokenUuid;
   const tokenDoc = fromUuidMaybe(tokenUuid);
-  const actorFromTokenDoc = tokenDoc?.actor ?? tokenDoc?.object?.actor;
-  if (actorFromTokenDoc) return { attacker: tagResolved(actorFromTokenDoc, "tokenUuid"), wfId };
+  const actorFromToken = tokenDoc?.actor ?? tokenDoc?.object?.actor;
+  if (actorFromToken) {
+    return { attacker: tagResolved(actorFromToken, "tokenUuid"), wfId };
+  }
 
-  const tokId = options?.midi?.tokenId ?? options?.tokenId;
-  const tok = canvas?.tokens?.get(tokId);
-  if (tok?.actor) return { attacker: tagResolved(tok.actor, "canvas.tokens.get(tokenId)"), wfId };
+  const tokenId = options?.midi?.tokenId ?? options?.tokenId;
+  const token = canvas?.tokens?.get(tokenId);
+  if (token?.actor) {
+    return { attacker: tagResolved(token.actor, "canvas.tokens.get(tokenId)"), wfId };
+  }
 
-  const lastWf = getLastMidiWorkflow();
-  if (lastWf?.actor) return { attacker: tagResolved(lastWf.actor, "MidiQOL.lastWorkflow"), wfId: lastWf?.id ?? lastWf?.uuid };
+  return null;
+}
 
-  const activeActor = game.combat?.combatant?.actor;
-  if (activeActor) return { attacker: tagResolved(activeActor, "game.combat.combatant"), wfId: undefined };
+function resolveAttackerForTarget(targetActorId, options = {}) {
+  pruneAttackers("resolve");
+
+  // Explicit Midi context belongs to this exact damage application and must win
+  // over LAST_ATTACKER, which is shared by all workflows targeting this Actor.
+  const explicit = resolveExplicitAttacker(options);
+  if (explicit?.attacker) return explicit;
+
+  const remembered = LAST_ATTACKER.get(targetActorId);
+  if (remembered?.attacker) {
+    tagResolved(remembered.attacker, remembered.by ?? "remembered");
+    return { attacker: remembered.attacker, wfId: remembered.wfId };
+  }
 
   return null;
 }
@@ -313,7 +356,6 @@ function fromUuidMaybe(uuid) {
   } catch { return null; }
 }
 
-function getLastMidiWorkflow() { try { return MidiQOL?.Workflow?.lastWorkflow ?? MidiQOL?.lastWorkflow ?? null; } catch { return null; } }
 
 // --- Midi auto-apply ---
 
