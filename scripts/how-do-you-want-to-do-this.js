@@ -69,8 +69,18 @@ Hooks.once("ready", () => {
   }
 
   // Midi-QoL 14.6.5 signature: (token, { item, workflow, damageItem, ditem }).
-  Hooks.on("midi-qol.preTargetDamageApplication", (token, context = {}) => {
+  // Accept the former (workflow, tokenDocument) ordering as a compatibility fallback.
+  Hooks.on("midi-qol.preTargetDamageApplication", (first, second = {}) => {
     try {
+      const usesCurrentSignature = !!second && typeof second === "object" &&
+        ("workflow" in second || "item" in second || "damageItem" in second || "ditem" in second);
+      const token = usesCurrentSignature ? first : second;
+      const context = usesCurrentSignature ? second : {
+        workflow: first,
+        item: first?.item,
+        damageItem: first?.damageItem ?? first?.ditem,
+        ditem: first?.damageItem ?? first?.ditem
+      };
       const workflow = context?.workflow ?? null;
       const item = context?.item ?? workflow?.item;
       const attacker = workflow?.actor ?? item?.parent?.document ?? item?.parent ?? workflow?.token?.actor;
