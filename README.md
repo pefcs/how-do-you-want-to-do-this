@@ -18,18 +18,17 @@
 - **Prompt text (GM dialog)** — custom text displayed in the GM prompt.
 - **DEBUG logs** — writes diagnostic information to the browser console.
 
-## Requirements
+## Requirements and tested environment
 
-- Foundry VTT **14.369–14.999**
-- D&D 5e **6.0.6–6.0.999**
-- Midi-QoL **14.6.5 or newer compatible release**
-- libWrapper
+- Foundry VTT and D&D 5e versions supported by the installed Midi-QoL release.
+- Midi-QoL and libWrapper are required.
+- The updated integration was audited against Foundry V14.369, D&D 5e 6.0.6 and Midi-QoL 14.6.5.
 
 **Optional integration:** Polymorph With Overflow. The module checks for its active state and polymorph flag but does not require it.
 
 ## Midi-QoL integration
 
-The module uses the current `midi-qol.preTargetDamageApplication` arguments `(token, { item, workflow, damageItem, ditem })` to associate a target with the attacking workflow.
+The module uses `midi-qol.preTargetDamageApplication` to associate a target with its attacking workflow. It accepts Midi-QoL 14.6.5's current arguments `(token, { item, workflow, damageItem, ditem })` and retains a fallback for the former `(workflow, tokenDocument)` argument order.
 
 For the imminent HP update, it uses D&D 5e's `dnd5e.preApplyDamage` hook `(actor, amount, updates, options)`. Midi-QoL 14.6.5 includes the source Actor UUID and item-card UUID in `options.midi`; the explicit source on that damage application is preferred over the short-lived target-attacker cache. This avoids confusing overlapping workflows that damage the same Actor.
 
