@@ -1,10 +1,18 @@
 {
   "id": "how-do-you-want-to-do-this",
   "title": "How do you want to do this",
-  "description": "Pause when an attacker PC would drop a target to 0 HP during Midi damage workflow; GM dialog and resume on Continue.",
-  "version": "2.0.0",
-  "authors": [{ "name": "Pefcs" }],
-  "compatibility": { "minimum": "13", "verified": "14", "maximum": "14" },
+  "description": "Pauses Midi-QoL automatic damage application when a player-character attack would reduce a target to 0 HP, allowing the GM to choose when to reveal the target's defeat.",
+  "version": "2.0.1",
+  "authors": [
+    {
+      "name": "Pefcs"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14.369",
+    "verified": "14.369",
+    "maximum": "14.999"
+  },
   "relationships": {
     "requires": [
       {
@@ -17,16 +25,24 @@
         "type": "module",
         "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json"
       }
+    ],
+    "systems": [
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "6.0.6",
+          "verified": "6.0.6",
+          "maximum": "6.0.999"
+        }
+      }
     ]
   },
-  "esmodules": ["scripts/how-do-you-want-to-do-this.js"],
-  "url": "https://github.com/pefcs/how-do-you-want-to-do-this/",
+  "esmodules": [
+    "scripts/how-do-you-want-to-do-this.js"
+  ],
+  "url": "https://github.com/pefcs/how-do-you-want-to-do-this",
   "manifest": "https://github.com/pefcs/how-do-you-want-to-do-this/releases/latest/download/module.json",
-  "download": "https://github.com/pefcs/how-do-you-want-to-do-this/releases/latest/download/module.zip"
+  "download": "https://github.com/pefcs/how-do-you-want-to-do-this/releases/latest/download/module.zip",
+  "readme": "README.md"
 }
-
-
-
-
-
-
